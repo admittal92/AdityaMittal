@@ -1,0 +1,135 @@
+---
+title: "Homework Assignment 1"
+author: "Aditya Mittal"
+date: 'Assigned: Oct 24, 2020, Due Sun Nov 01, 2020 11:59PM'
+output:
+  html_document: 
+    toc: yes
+    toc_float: yes
+    code_folding: hide
+  pdf_document: default
+  
+---
+
+## Data frame basics
+
+```{r}
+nycflights <- read.csv("nycflights.csv")
+#Removing garbage column X
+nycflights$X <- NULL
+#Changing the format of variables
+nycflights$origin <- as.factor(nycflights$origin)
+nycflights$tailnum <- as.factor(nycflights$tailnum)
+nycflights$carrier <- as.factor(nycflights$carrier)
+nycflights$month <- as.factor(nycflights$month)
+nycflights$dest <- as.factor(nycflights$dest)
+nycflights$flight <- as.factor(nycflights$flight)
+nycflights$time_hour <- as.Date(nycflights$time_hour)
+head(nycflights)
+
+```
+
+### Data Exploration
+
+```{r}
+
+#Number of Airlines/carriers
+nlevels(nycflights$carrier)
+#List of all those airlines
+levels(nycflights$carrier)
+#Number of flights by the airline with code OO
+nrow(nycflights[nycflights$carrier == 'OO',])
+#shortest flight out of any NYC airport
+min(nycflights$air_time, na.rm = TRUE)
+#flights by United Airlines (code: UA) on Jan 12th 2013
+nrow(nycflights[nycflights$carrier == 'UA' & nycflights$time_hour == '2013-01-13',])
+```
+
+
+
+### Arrival Delay
+
+```{r}
+#average arrival delay for all airports and all airlines combined in Jan 2013
+round(mean(nycflights[nycflights$month == '1',]$arr_delay, na.rm = TRUE),2)
+
+#median arrival delay for all airports and all airlines combined in Jan 2013
+round(median(nycflights[nycflights$month == '1',]$arr_delay, na.rm = TRUE),2)
+```
+Since mean arrival delay is greater than median arrival delay, arrival delay variable is positively skewed.
+
+
+### Airline Performance
+
+```{r}
+tapply(nycflights$arr_delay, nycflights$carrier, mean, na.rm = TRUE)
+Arrival_Delay_Byairline <- tapply(nycflights$arr_delay, nycflights$carrier, mean, na.rm = TRUE)
+barplot(Arrival_Delay_Byairline)
+```
+
+The airline with the highest arrival delay is: `r names(Arrival_Delay_Byairline[Arrival_Delay_Byairline == max(Arrival_Delay_Byairline)])` and the amount of delay is: `r max(Arrival_Delay_Byairline)`
+The airline with the smallest arrival delay is: `r names(Arrival_Delay_Byairline[Arrival_Delay_Byairline == min(Arrival_Delay_Byairline)])` and the amount of delay is: `r min(Arrival_Delay_Byairline)`
+The airlines with negative arrival delays are: `r names(Arrival_Delay_Byairline[Arrival_Delay_Byairline <0])`
+
+
+### Air Gain
+
+```{r}
+nycflights$airgain <- nycflights$dep_delay - nycflights$arr_delay
+summary(nycflights$airgain)
+tapply(nycflights$airgain, nycflights$origin, mean, na.rm = TRUE)
+tapply(nycflights$airgain, nycflights$carrier, mean, na.rm = TRUE)
+tapply(nycflights$airgain, nycflights$month, mean, na.rm = TRUE)
+hist(nycflights$airgain)
+barplot(tapply(nycflights$airgain, nycflights$origin, mean, na.rm = TRUE))
+barplot(tapply(nycflights$airgain, nycflights$carrier, mean, na.rm = TRUE))
+barplot(tapply(nycflights$airgain, nycflights$month, mean, na.rm = TRUE))
+library("ggplot2")
+ggplot(data=nycflights, aes(x=origin, y=airgain)) + geom_point()
+ggplot(data=nycflights, aes(x=carrier, y=airgain)) + geom_point()
+ggplot(data=nycflights, aes(x=month, y=airgain)) + geom_point()
+
+#Do airlines actually gain any time when in air on average
+mean(nycflights$airgain, na.rm = TRUE)
+#Average airgain by different airlines
+tapply(nycflights$airgain, nycflights$carrier, mean, na.rm = TRUE)
+
+```
+
+
+### Merging Data Frames
+
+```{r}
+planes <- read.csv("planes.csv")
+#Removing garbage column X
+planes$X <- NULL
+#Changing the format of variables
+planes$tailnum <- as.factor(planes$tailnum)
+planes$type <- as.factor(planes$type)
+planes$manufacturer <- as.factor(planes$manufacturer)
+planes$engines <- as.factor(planes$engines)
+planes$engine <- as.factor(planes$engine)
+planes$model <- as.factor(planes$model)
+dim(nycflights)
+dim(planes)
+library(dplyr)
+nycflightsmerged <- left_join(nycflights, planes, by = c("tailnum" = "tailnum"), suffix = c(".x", ".y"), .merge = TRUE)
+head(nycflightsmerged)
+dim(nycflightsmerged)
+
+#Q1 - How does average air gain differ by engine
+barplot(tapply(nycflightsmerged$airgain,nycflightsmerged$engine, mean, na.rm = TRUE))
+
+#Q2 - How does average air gain differ by type
+barplot(tapply(nycflightsmerged$airgain, nycflightsmerged$type, mean, na.rm = TRUE))
+
+# Q3 - What is oldest aircraft across carriers by year
+tapply(nycflightsmerged$year.y,nycflightsmerged$carrier, min, na.rm = TRUE)
+
+#Q4 - Which carrier flies the biggest plane in terms of number of seats
+maxseats <- tapply(nycflightsmerged$seats,nycflightsmerged$carrier, max, na.rm = TRUE)
+names(maxseats[maxseats == max(maxseats)])
+
+#Q5 - what is the number of flights departed from JFK that was manufactured by BOEING
+nrow(nycflightsmerged[nycflightsmerged$manufacturer == 'BOEING' & nycflightsmerged$origin=='JFK',])
+```
